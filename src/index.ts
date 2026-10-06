@@ -5,6 +5,7 @@ import { readFile, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, basename, resolve } from "node:path";
 import { z } from "zod";
 import { fi } from "zod/locales";
+import { stringify } from "node:querystring";
 
 const cwd = process.argv[2] || process.cwd()
 
@@ -108,6 +109,15 @@ EXAMPLES:
   }
 })
 
+const bash=tool({
+  description:``,
+  inputSchema:z.object({
+
+  }),
+  execute async ({})=>{
+    
+  }
+})
 
 const agent = new ToolLoopAgent({
   model: deepseek("deepseek-chat"),
@@ -119,3 +129,9 @@ const prompt = process.argv.slice(3).join(" ") || "hello"
 const result = await agent.generate({ prompt })
 console.log(result.text)
 console.log("一共执行了" + result.steps.length + "步")
+for(const [i,step] of result.steps.entries()){
+  for(const tc of step.toolCalls){
+    console.log(`第${i+1}步，使用了方法，${tc.toolName}`)
+  }
+
+}
