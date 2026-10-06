@@ -1,11 +1,10 @@
 import "dotenv/config";
-import { generateText, tool, stepCountIs, type ModelMessage, ToolLoopAgent } from "ai";
+import {  tool, stepCountIs,  ToolLoopAgent } from "ai";
 import { deepseek } from "@ai-sdk/deepseek";
-import { readFile, readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, basename, resolve } from "node:path";
 import { z } from "zod";
-import { fi } from "zod/locales";
-import { stringify } from "node:querystring";
+import { execSync } from "node:child_process";
 
 const cwd = process.argv[2] || process.cwd()
 
@@ -109,20 +108,45 @@ EXAMPLES:
   }
 })
 
+const SAFE_PREFIXES :string[]=[
+  "ls","cat","echo","pwd","which","find",
+  "head","tail","wc","git log","git status","git diff"
+]
+function isSafe(command :string):boolean{
+  return SAFE_PREFIXES.some((p)=>command.trim().startsWith(p))
+}
 const bash=tool({
-  description:``,
-  inputSchema:z.object({
-
+  description:`Execute a shell command in the working directory.
+WHEN TO USE: running build commands, installing packages, running tests,
+  git operations, directory listings.
+WHEN NOT TO USE: reading file contents (use read instead).
+  Searching for patterns (use grep instead).
+DO NOT USE FOR: reading files (use read), searching code (use grep).`,
+  inputSchema: z.object({
+    command: z.string().describe("要执行的 shell 命令，例如 `ls -la` 或 `git status`")
   }),
-  execute async ({})=>{
-    
+  execute :async ({command})=>{
+    if(!isSafe(command)){
+      return `${command}命令错误，只有${SAFE_PREFIXES.join(",")}才能成功运行`
+    }
+    try{
+      const stdout=execSync(command,{
+        cwd,
+        encoding: "utf-8",
+        timeout: 30_000,
+      })
+      return stdout||"(没有输出)"
+    }catch(e:any){
+      return `Exit ${e.status ?? 1}: ${e.stdout || e.stderr || e.message || ""}`
+    }
+
   }
 })
 
 const agent = new ToolLoopAgent({
   model: deepseek("deepseek-chat"),
   instructions: `你是一个中文编程助手,工作目录为${cwd}`,
-  tools: { read,grep },
+  tools: { read,grep,bash },
   stopWhen: stepCountIs(10)
 })
 const prompt = process.argv.slice(3).join(" ") || "hello"
@@ -130,8 +154,7 @@ const result = await agent.generate({ prompt })
 console.log(result.text)
 console.log("一共执行了" + result.steps.length + "步")
 for(const [i,step] of result.steps.entries()){
-  for(const tc of step.toolCalls){
-    console.log(`第${i+1}步，使用了方法，${tc.toolName}`)
+  for(const [j,tc] of step.toolCalls.entries()){
+      console.log(`step ${i + 1} / 调用 ${j + 1}：${tc.toolName}`);
   }
-
 }
