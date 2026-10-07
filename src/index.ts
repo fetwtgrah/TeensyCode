@@ -5,6 +5,8 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, basename, resolve } from "node:path";
 import { z } from "zod";
 import { execSync } from "node:child_process";
+import type { promises } from "node:dns";
+import { exitCode, stdout } from "node:process";
 
 const cwd = process.argv[2] || process.cwd()
 
@@ -113,40 +115,64 @@ EXAMPLES:
   }
 })
 
+//使用工厂模式创建bash工具
 const SAFE_PREFIXES :string[]=[
   "ls","cat","echo","pwd","which","find",
   "head","tail","wc","git log","git status","git diff"
 ]
-function isSafe(command :string):boolean{
-  return SAFE_PREFIXES.some((p)=>command.trim().startsWith(p))
+
+interface BashOperation{
+  exec(command:string):Promise<{
+    stdout:string,
+    exitCode:number
+  }>
 }
-const bash=tool({
+function CreatBashTool(operations:BashOperation,safePerfixes:string[]){
+  function isSafe(command :string):boolean{
+  return safePerfixes.some((p)=>command.trim().startsWith(p))
+ }
+ return tool({
   description:`Execute a shell command in the working directory.
-WHEN TO USE: running build commands, installing packages, running tests,
-  git operations, directory listings.
-WHEN NOT TO USE: reading file contents (use read instead).
+  WHEN TO USE: running build commands, installing packages, running tests,
+    git operations, directory listings.
+  WHEN NOT TO USE: reading file contents (use read instead).
   Searching for patterns (use grep instead).
-DO NOT USE FOR: reading files (use read), searching code (use grep).`,
+  DO NOT USE FOR: reading files (use read), searching code (use grep).`,
   inputSchema: z.object({
     command: z.string().describe("要执行的 shell 命令，例如 `ls -la` 或 `git status`")
   }),
-  execute :async ({command})=>{
-    if(!isSafe(command)){
+  execute: async({command})=>{
+     if(!isSafe(command)){
       return `${command}命令错误，只有${SAFE_PREFIXES.join(",")}才能成功运行`
     }
-    try{
-      const stdout=execSync(command,{
-        cwd,
-        encoding: "utf-8",
-        timeout: 30_000,
-      })
-      return stdout||"(没有输出)"
-    }catch(e:any){
-      return `Exit ${e.status ?? 1}: ${e.stdout || e.stderr || e.message || ""}`
-    }
-
+    const {stdout}=await operations.exec(command)
+    return stdout||"no output"
   }
-})
+ })
+}
+const localOpe:BashOperation={
+  exec: async(command)=>{
+    try{
+      const stdout=execSync(command,
+        {
+          cwd,
+          encoding:"utf-8",
+          timeout:30_000
+        }
+      )
+      return {
+        stdout:stdout,
+        exitCode:0
+    }
+  }catch(e:any){
+    return{
+      stdout:`Exit ${e.status ?? 1}: ${e.stdout || e.stderr || e.message || ""}`,
+      exitCode: e.status??1
+    }
+   }
+  }
+}
+const bash=CreatBashTool(localOpe,SAFE_PREFIXES)
 
 const agent = new ToolLoopAgent({
   model: deepseek("deepseek-chat"),
