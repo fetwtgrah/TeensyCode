@@ -114,23 +114,35 @@ EXAMPLES:
           :matches.join("\n")
   }
 })
-
-//使用工厂模式创建bash工具
 const SAFE_PREFIXES :string[]=[
   "ls","cat","echo","pwd","which","find",
   "head","tail","wc","git log","git status","git diff"
 ]
+type approvalConfig=
+  |{mode:"interactive"}
+  |{mode:"background"}
+  |{mode:"delegated",trust:string[]}
+function creatApproval(config: approvalConfig){
+  return ({command}:{command:string})=>{
+    if(config.mode==="background") return false
+    if(config.mode==="delegated"){
+      return !config.trust.some((p)=>command.trim().startsWith(p))
+    }
+    return !SAFE_PREFIXES.some((p)=>command.trim().startsWith(p))
+}
 
+
+}
 interface BashOperation{
   exec(command:string):Promise<{
     stdout:string,
     exitCode:number
   }>
 }
-function CreatBashTool(operations:BashOperation,safePerfixes:string[]){
-  function isSafe(command :string):boolean{
-  return safePerfixes.some((p)=>command.trim().startsWith(p))
- }
+//使用工厂模式创建bash工具
+function CreatBashTool(
+  operations:BashOperation,
+  needApproval:(input:{command:string})=>boolean){
  return tool({
   description:`Execute a shell command in the working directory.
   WHEN TO USE: running build commands, installing packages, running tests,
@@ -142,8 +154,8 @@ function CreatBashTool(operations:BashOperation,safePerfixes:string[]){
     command: z.string().describe("要执行的 shell 命令，例如 `ls -la` 或 `git status`")
   }),
   execute: async({command})=>{
-     if(!isSafe(command)){
-      return `${command}命令错误，只有${SAFE_PREFIXES.join(",")}才能成功运行`
+    if(needApproval({command})){
+         return `${command}命令错误，只有${SAFE_PREFIXES.join(",")}才能成功运行`
     }
     const {stdout}=await operations.exec(command)
     return stdout||"no output"
@@ -172,7 +184,7 @@ const localOpe:BashOperation={
    }
   }
 }
-const bash=CreatBashTool(localOpe,SAFE_PREFIXES)
+const bash=CreatBashTool(localOpe,creatApproval({mode:"interactive"}))
 
 const agent = new ToolLoopAgent({
   model: deepseek("deepseek-chat"),
