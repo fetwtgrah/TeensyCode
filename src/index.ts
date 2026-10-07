@@ -27,7 +27,12 @@ function globToRegex(glob: string): RegExp {
 }
 
 const read = tool({
-  description: `使用这个工具，当需要读取文件内容的时候`,
+  description: `using this tool for reading the file from the project , returns numbered lines,
+  WHEN TO USE: need to check file content,
+  WHEN NOT TO USE: search for specific function or pattrens(use grep instead),run commands(use bash instead)
+  USAGE: path is relative to working directory. offset and limit are optional.
+  Output is capped at 500 lines.
+  `,
   inputSchema: z.object({
     path: z.string().describe("文件的相对路径"),
     offset: z.number().optional().describe("从第几行开始，以1作为初始"),
