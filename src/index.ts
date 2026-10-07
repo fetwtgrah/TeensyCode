@@ -5,8 +5,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, basename, resolve } from "node:path";
 import { z } from "zod";
 import { execSync } from "node:child_process";
-import type { promises } from "node:dns";
-import { exitCode, stdout } from "node:process";
+import { creatSystemPrompt } from "./system.js";
 
 const cwd = process.argv[2] || process.cwd()
 
@@ -114,6 +113,7 @@ EXAMPLES:
           :matches.join("\n")
   }
 })
+
 const SAFE_PREFIXES :string[]=[
   "ls","cat","echo","pwd","which","find",
   "head","tail","wc","git log","git status","git diff"
@@ -133,13 +133,13 @@ function creatApproval(config: approvalConfig){
 
 
 }
+//使用工厂模式创建bash工具
 interface BashOperation{
   exec(command:string):Promise<{
     stdout:string,
     exitCode:number
   }>
 }
-//使用工厂模式创建bash工具
 function CreatBashTool(
   operations:BashOperation,
   needApproval:(input:{command:string})=>boolean){
@@ -186,9 +186,16 @@ const localOpe:BashOperation={
 }
 const bash=CreatBashTool(localOpe,creatApproval({mode:"interactive"}))
 
+
+
+const instructions=creatSystemPrompt({
+  workingDictory:cwd,
+  sandBoxType:"local",
+  toolName:Object.keys({read,grep,bash})
+})
 const agent = new ToolLoopAgent({
   model: deepseek("deepseek-chat"),
-  instructions: `你是一个中文编程助手,工作目录为${cwd}`,
+  instructions,
   tools: { read,grep,bash },
   stopWhen: stepCountIs(10)
 })
