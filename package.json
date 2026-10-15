@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "server": "npx tsx src/server/server.ts"
   },
   "keywords": [],
   "author": "",
@@ -12,12 +13,17 @@
   "type": "module",
   "dependencies": {
     "@ai-sdk/deepseek": "^3.0.58",
+    "@modelcontextprotocol/express": "^2.0.2",
+    "@modelcontextprotocol/node": "^2.1.1",
+    "@modelcontextprotocol/server": "^2.3.1",
     "ai": "^7.0.127",
     "dotenv": "^18.0.5",
+    "express": "^5.3.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/node": "^26.6.4",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }

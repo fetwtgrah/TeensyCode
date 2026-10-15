@@ -187,12 +187,12 @@ const localOpe:BashOperation={
 const bash=CreatBashTool(localOpe,creatApproval({mode:"interactive"}))
 
 
-
 const instructions=creatSystemPrompt({
   workingDictory:cwd,
   sandBoxType:"local",
   toolName:Object.keys({read,grep,bash})
 })
+
 const agent = new ToolLoopAgent({
   model: deepseek("deepseek-chat"),
   instructions,
