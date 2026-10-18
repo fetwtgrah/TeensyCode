@@ -9,8 +9,11 @@ import { creatSystemPrompt } from "./system.js";
 import { createMCPClient } from "@ai-sdk/mcp"
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import { CreatReadTool, CreatWriteTool } from "./tool.js";
+import { LocalSandBox } from "../sandbox.js";
 
 const cwd = resolve(process.cwd(),"workplace")
+const sandbox=new LocalSandBox(cwd)
 function walk(dir: string): string[] {
   const result: string[] = []
   for (const name of readdirSync(dir)) {
@@ -28,76 +31,9 @@ function globToRegex(glob: string): RegExp {
     .replace(/\?/g, ".")
   return new RegExp(`${escaped}`)
 }
-const write = tool({
-  description: `
-  在工作目录中创建或写入文件。
-  WHEN TO USE: 创建 Markdown、文本文件或更新文件内容。
-  不要使用 bash 的 echo 命令代替文件写入。
-  `,
-  inputSchema: z.object({
-    path: z.string().describe("相对于工作目录的文件路径"),
-    content: z.string().describe("需要写入的完整文件内容"),
-  }),
-  execute: async ({ path: filePath, content }) => {
-    const abs = resolve(cwd, filePath);
-    const rel = relative(cwd, abs);
-    // 禁止访问工作目录以外的路径
-    if (
-      rel === ".." ||
-      rel.startsWith(`..${sep}`) ||
-      isAbsolute(rel)
-    ) {
-      return "拒绝写入：文件路径超出工作目录";
-    }
 
-    try {
-      writeFileSync(abs, content, {
-        encoding: "utf-8",
-        flag: "wx",
-      });
-
-      return `文件创建成功：${rel}`;
-    } catch (e: any) {
-      if (e.code === "EEXIST") {
-        return "文件已经存在，为避免覆盖，本次没有写入";
-      }
-
-      return `文件创建失败：${e.message}`;
-    }
-  },
-});
-const read = tool({
-  description: `using this tool for reading the file from the project , returns numbered lines,
-  WHEN TO USE: need to check file content,
-  WHEN NOT TO USE: search for specific function or pattrens(use grep instead),run commands(use bash instead)
-  USAGE: path is relative to working directory. offset and limit are optional.
-  Output is capped at 500 lines.
-  `,
-  inputSchema: z.object({
-    path: z.string().describe("文件的相对路径"),
-    offset: z.number().optional().describe("从第几行开始，以1作为初始"),
-    limit: z.number().optional().describe("最多读取多少行")
-  }),
-  execute: async ({ path: filePath, offset, limit }) => {
-    const abs = resolve(cwd, filePath)
-    let content: string
-    try {
-      content = readFileSync(abs, "utf-8")
-    } catch {
-      return `找不到文件${filePath}`
-    }
-    let lines = content.split("\n")
-    if (offset) lines = lines.slice(offset - 1)
-    if (limit) lines = lines.slice(0, limit)
-    const MAX_LENGTH = 500
-    const ifOver = MAX_LENGTH < lines.length
-    lines = (ifOver) ? lines.slice(0, MAX_LENGTH) : lines
-    const numbered = lines.map((line, i) => `${(offset || 1) + i}:${line}`)
-    return ifOver
-      ? numbered.join("\n") + `\n目前只读到了${MAX_LENGTH}行`
-      : numbered.join("\n") + `\n读取文件行数：${lines.length}，已经阅读完成`
-  }
-})
+const write=CreatWriteTool(sandbox)
+const read =CreatReadTool(sandbox)
 
 const grep = tool({
   description: `Search file contents for a plain text string (not a regex). Returns matching lines as "file:line:content".
@@ -236,7 +172,7 @@ const mcpClient = await createMCPClient({
 });
 console.log("√😊已经成功连接mcp......")
 const Mcptools = await mcpClient.tools()//获取工具需要和server进行通信，所以使用异步
-const Localtools = { read, grep, bash }
+const Localtools = { read, grep, bash,write}
 const agent = new ToolLoopAgent({
   model: deepseek("deepseek-chat"),
   instructions,
