@@ -6,7 +6,7 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "server": "npx tsx src/server/server.ts",
-    "client": "npx tsx src/client/index.ts"
+    "client": "npx tsx src/client/client.ts"
   },
   "keywords": [],
   "author": "",

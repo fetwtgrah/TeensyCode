@@ -1,8 +1,9 @@
 import type { SandBox } from "../sandbox.js";
 import {tool} from "ai"
 import {z} from "zod"
-import { relative,resolve} from "node:path";
-export function CreatReadTool(sandbox :SandBox){
+import { relative,resolve,join,basename} from "node:path";
+import { readdirSync ,statSync,readFileSync} from "node:fs";
+export function CreateReadTool(sandbox :SandBox){
     return tool({
           description: `using this tool for reading the file from the project , returns numbered lines,
           WHEN TO USE: need to check file content,
@@ -20,7 +21,7 @@ export function CreatReadTool(sandbox :SandBox){
           }
     })
 }
-export function CreatWriteTool(sandbox:SandBox){
+export function CreateWriteTool(sandbox:SandBox){
     return tool({
         description: `
           在工作目录中创建或写入文件。
@@ -36,4 +37,107 @@ export function CreatWriteTool(sandbox:SandBox){
           }
     })
 
+}
+function walk(dir: string): string[] {
+  const result: string[] = []
+  for (const name of readdirSync(dir)) {
+    if (name === "node_modules" || name === ".git") continue
+    const full = join(dir, name)
+    if (statSync(full).isDirectory()) result.push(...walk(full))
+    else result.push(full)
+  }
+  return result
+}
+function globToRegex(glob: string): RegExp {
+  const escaped = glob
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/\?/g, ".")
+  return new RegExp(`${escaped}`)
+}
+
+export function CreateGrepTool(sandbox:SandBox){
+  return tool({
+    description: `Search file contents for a plain text string (not a regex). Returns matching lines as "file:line:content".
+  WHEN TO USE: finding a keyword across multiple files, locating function names, TODOs, error messages.
+  WHEN NOT TO USE: reading a known file (use read instead).
+  DO NOT USE FOR: running commands, listing directories.
+  EXAMPLES:
+    - Find TODO comments: pattern "TODO" glob "*.ts"
+    - Find a function: pattern "function readFile" glob "*.ts"`,
+    inputSchema: z.object({
+      pattern: z.string().describe(`Plain text to search for (not a regex)`),
+      path: z.string().optional().describe("搜索的目录，默认为工作目录"),
+      glob: z.string().optional().describe("文件名过滤")
+    }),
+    execute: async ({ pattern, path: searchPath, glob: globFilter }) => {
+      const dir = resolve(sandbox.workingdictory, searchPath || ".")
+      const globRe = globToRegex(globFilter || "*")
+      const keyword = pattern.toLowerCase()
+      const MAX_MATCHES = 50
+      const matches: string[] = []
+      let total = 0
+      let files: string[] = []
+      try {
+        files = walk(dir)
+      } catch {
+        return `无法访问${searchPath || "."}`
+      }
+      for (const file of files) {
+        if (!globRe.test(basename(file))) continue
+        let content: string
+        try {
+          if (statSync(file).size > 1_000_000) continue
+          content = readFileSync(file, "utf-8")
+        } catch {
+          continue
+        }
+        const line = content.split("\n")
+        for (let i = 0; i < line.length; i++) {
+          if (line[i]?.toLowerCase().includes(keyword)) {
+            total++
+            if (matches.length < MAX_MATCHES) {
+              matches.push(`${relative(sandbox.workingdictory, file)}:${i + 1}:${line[i]?.trim()}`)
+            }
+          }
+  
+        }
+      }
+  
+      if (total === 0) return "没有配对内容"
+      return total > MAX_MATCHES
+        ? matches.join("\n") + `\n...(共有${total}条，当前只显示${MAX_MATCHES})`
+        : matches.join("\n")
+    }
+  })
+}
+
+export function CreateBashTool(sandbox:SandBox){
+  return tool({
+    description: ` Execute a shell command in the project workspace.
+            Use this tool to inspect files, check git status,
+            and run project tests.
+            Do not execute destructive commands.`,
+    inputSchema:z.object({
+      command: z.string().min(1).describe("输入你的指令")
+    }),
+    execute: async({command})=>{
+       try {
+                const result = await sandbox.exec(command);
+
+                return {
+                    stdout: result.stdout,
+                    exitCode: result.exitcode,
+                };
+            } catch (error) {
+                return {
+                    stdout: "",
+                    exitCode: 1,
+                    error: error instanceof Error
+                        ? error.message
+                        : String(error),
+                };
+            }
+        }
+  })
 }

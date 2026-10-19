@@ -6,7 +6,7 @@ export interface promptContent {
     projectContext?: string
 }
 
-export function creatSystemPrompt(ctx: promptContent) {
+export function CreateSystemPrompt(ctx: promptContent) {
     const prompt: string[] = [];
     prompt.push(
         `you are a coding agent working in ${ctx.workingDictory}`
