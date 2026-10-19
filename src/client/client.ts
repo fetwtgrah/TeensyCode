@@ -8,6 +8,8 @@ import { stdin as input, stdout as output } from 'node:process';
 import { LocalSandBox } from "../sandbox.js";
 import { CreateBashTool, CreateGrepTool, CreateReadTool, CreateWriteTool } from "./tool.js";
 import { CreateSystemPrompt } from "./system.js";
+import { response } from "express";
+import { MessagePrint } from "../test/messageLog.js";
 
 const cwd = resolve(process.cwd(),"workplace")
 const sandbox=new LocalSandBox(cwd)
@@ -53,6 +55,9 @@ console.log(`
 └──────────────────────────────────────────────┘
 `);
 console.log("----------------------------------")
+const messages :any[]=[{
+  role:"system",content:instructions
+}]
 //创建一个交互页面
 const r = readline.createInterface({ input, output })
 try {
@@ -60,13 +65,23 @@ try {
     const userInput = await r.question("\nYOU>:")
     if (userInput == 'exit') break
     if (!userInput.trim()) continue
-    const { text } = await agent.generate({
-      prompt: userInput
+    messages.push({role:"user",content:[{
+      type:"text",
+      text:userInput
+    }]})
+    const result = await agent.generate({
+      messages:messages
     })
-    console.log(`\n` + "FRESHER>:" + text);
+
+     if (result.responseMessages) {
+       messages.push(...result.responseMessages);
+    }
+    console.log(`\n` + "FRESHER>:" + result.text);
+
   }
 } finally {
   r.close()
   await mcpClient.close()
   console.log("\nFRESHER>:😳下次见")
+  MessagePrint(messages,cwd)
 }
