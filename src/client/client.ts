@@ -1,14 +1,13 @@
 import "dotenv/config";
-import { tool, stepCountIs, ToolLoopAgent } from "ai";
+import { stepCountIs, ToolLoopAgent } from "ai";
 import { deepseek } from "@ai-sdk/deepseek";
-import { join, relative, basename, resolve, isAbsolute, sep } from "node:path";
+import { resolve } from "node:path";
 import { createMCPClient } from "@ai-sdk/mcp"
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { LocalSandBox } from "../sandbox.js";
-import { CreateBashTool, CreateGrepTool, CreateReadTool, CreateWriteTool } from "./tool.js";
+import { CreateBashTool, CreateGrepTool, CreateReadTool, CreateWriteTool, CreatTaskTool } from "./tool.js";
 import { CreateSystemPrompt } from "./system.js";
-import { response } from "express";
 import { MessagePrint } from "../test/messageLog.js";
 
 const cwd = resolve(process.cwd(),"workplace")
@@ -18,6 +17,15 @@ const write=CreateWriteTool(sandbox)
 const read =CreateReadTool(sandbox)
 const grep=CreateGrepTool(sandbox)
 const bash=CreateBashTool(sandbox)
+
+const explorer=new ToolLoopAgent({
+  model: deepseek("deepseek-chat"),
+  instructions:"你是代码调查 Agent，只负责读取和分析代码。",
+  tools:{read,grep},
+  stopWhen: stepCountIs(5)
+})
+export type ExplorerAgent=typeof explorer
+const task=CreatTaskTool(explorer)
 
 const instructions = CreateSystemPrompt({
   workingDictory: cwd,
@@ -29,7 +37,7 @@ const mcpClient = await createMCPClient({
 });
 console.log("√😊已经成功连接mcp......")
 const Mcptools = await mcpClient.tools()
-const Localtools = { read, grep, bash,write}
+const Localtools = { read, grep, bash,write,task}
 const agent = new ToolLoopAgent({
   model: deepseek("deepseek-chat"),
   instructions,
@@ -55,9 +63,8 @@ console.log(`
 └──────────────────────────────────────────────┘
 `);
 console.log("----------------------------------")
-const messages :any[]=[{
-  role:"system",content:instructions
-}]
+const messages :any[]=[]
+
 //创建一个交互页面
 const r = readline.createInterface({ input, output })
 try {

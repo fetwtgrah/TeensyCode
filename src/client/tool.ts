@@ -3,6 +3,22 @@ import {tool} from "ai"
 import {z} from "zod"
 import { relative,resolve,join,basename} from "node:path";
 import { readdirSync ,statSync,readFileSync} from "node:fs";
+import type { ExplorerAgent } from "./client.js";
+
+export function CreatTaskTool(explorer :ExplorerAgent){
+  return tool({
+    description:"你是一个搜索子agent，负责查看文件内容和查找相关的内容",
+    inputSchema:z.object({
+      describe: z.string()
+    }),
+    execute :async({describe})=>{
+      const result= await explorer.generate({
+        prompt: describe
+      })
+      return result.text
+    }
+  })
+}
 export function CreateReadTool(sandbox :SandBox){
     return tool({
           description: `using this tool for reading the file from the project , returns numbered lines,
