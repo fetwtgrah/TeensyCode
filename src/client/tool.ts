@@ -1,6 +1,6 @@
 import type { SandBox } from "../sandbox.js";
 import {tool} from "ai"
-import {z} from "zod"
+import {overwrite, z} from "zod"
 import { relative,resolve,join,basename} from "node:path";
 import { readdirSync ,statSync,readFileSync} from "node:fs";
 import type { ExplorerAgent } from "./client.js";
@@ -47,9 +47,10 @@ export function CreateWriteTool(sandbox:SandBox){
           inputSchema: z.object({
             path: z.string().describe("相对于工作目录的文件路径"),
             content: z.string().describe("需要写入的完整文件内容"),
+            overwrite: z.boolean().default(false).describe("文件已经存在的时候是否覆盖，默认为false"),
           }),
-          execute: async({path,content})=>{
-            return sandbox.writefile(path,content) 
+          execute: async({path,content,overwrite})=>{
+            return sandbox.writefile(path,content,overwrite) 
           }
     })
 

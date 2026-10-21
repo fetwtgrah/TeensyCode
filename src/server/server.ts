@@ -4,9 +4,11 @@ import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpExpressApp } from '@modelcontextprotocol/express';
 
 import express from "express";
+import { searchWeb } from "./tools.js";
+import { title } from "node:process";
 // 创建 MCP Server 实例（每次请求新建，保证无状态）
 const handler = createMcpHandler(() => {
-  const server = new McpServer({
+const server = new McpServer({
     name: "demo-server",
     version: "v1.0.0"
   })
@@ -30,6 +32,25 @@ const handler = createMcpHandler(() => {
       };
     }
   );
+  server.registerTool(
+    "search",
+    {
+      description:"用于搜索联网内容",
+      inputSchema:z.object({
+        query: z.string().describe("question")
+      })
+    },
+    async ({query})=>{
+      const {results}=await searchWeb(query)
+      const contents = results.map((item) => ({
+        type: "text" as const,
+        text: `标题：${item.title}\n链接：${item.url}\n摘要：${item.summary}\n相关度：${item.rerank_score}`,
+      }));
+      return {
+        content:contents
+      }
+    }
+  )
   //注册提示词
   server.registerPrompt(
     "greeter",

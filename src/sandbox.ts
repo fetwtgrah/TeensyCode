@@ -1,7 +1,7 @@
 export interface SandBox {
     type: string;
     workingdictory: string;
-    writefile(path:string,content:string):string;
+    writefile(path:string,content:string,overwrite:boolean):string;
     readfile(path: string, offest: number | undefined, limit: number | undefined): string;
     exec(command: string): Promise<{ stdout: string, exitcode: number }>;
     stop(): Promise<void>;
@@ -17,7 +17,7 @@ export class LocalSandBox implements SandBox {
     constructor(workingdictory: string) {
         this.workingdictory = workingdictory
     }
-    writefile(path: string, content: string): string {
+    writefile(path: string, content: string,overwrite:boolean): string {
        const abs = resolve(this.workingdictory, path);
        const rel = relative(this.workingdictory, abs);
         if (
@@ -31,7 +31,7 @@ export class LocalSandBox implements SandBox {
             try {
               writeFileSync(abs, content, {
                 encoding: "utf-8",
-                flag: "wx",
+                flag: overwrite?"w":"wx"
               });
         
               return `文件创建成功：${rel}`;
