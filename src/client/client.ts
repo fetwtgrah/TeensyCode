@@ -95,5 +95,5 @@ try {
   r.close()
   await mcpClient?.close()
   console.log("\nFRESHER>:😳下次见")
-  MessagePrint(messages,cwd)
+  MessagePrint(messages,cwd,"agent")
 }

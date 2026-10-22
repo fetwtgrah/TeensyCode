@@ -27,7 +27,7 @@ export function CreatWebTool(agent: WebAgent) {
         role:"assistant",
         content:result.text
       })
-      MessagePrint(submessages,cwd)
+      MessagePrint(submessages,cwd,"sub")
       return result.text
     }
   })
