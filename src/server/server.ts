@@ -2,17 +2,16 @@ import * as z from "zod/v4";
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpExpressApp } from '@modelcontextprotocol/express';
-
 import express from "express";
 import { fetchWeb, searchWeb } from "./tools.js";
-import { title } from "node:process";
+
 // 创建 MCP Server 实例（每次请求新建，保证无状态）
 const handler = createMcpHandler(() => {
 const server = new McpServer({
     name: "demo-server",
-    version: "v1.0.0"
+    version: "1.0.0"
   })
-  
+
   server.registerTool(
     "search",
     {
@@ -81,7 +80,7 @@ const server = new McpServer({
 const mcpApp = createMcpExpressApp()
 const nodeHandler = toNodeHandler(handler)
 mcpApp.use(express.json())
-mcpApp.all("/mcp", (rep, res) => nodeHandler(rep, res,rep.body))
+mcpApp.all("/WebMcp", (rep, res) => nodeHandler(rep, res,rep.body))
 mcpApp.listen(3000, () => {
-  console.log("MCP Server 运行在 http://127.0.0.1:3000/mcp");
+  console.log("MCP Server 运行在 http://127.0.0.1:3000/WebMcp");
 });
