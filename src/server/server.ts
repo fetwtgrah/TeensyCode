@@ -4,7 +4,7 @@ import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpExpressApp } from '@modelcontextprotocol/express';
 
 import express from "express";
-import { searchWeb } from "./tools.js";
+import { fetchWeb, searchWeb } from "./tools.js";
 import { title } from "node:process";
 // 创建 MCP Server 实例（每次请求新建，保证无状态）
 const handler = createMcpHandler(() => {
@@ -12,26 +12,7 @@ const server = new McpServer({
     name: "demo-server",
     version: "v1.0.0"
   })
-  server.registerTool(
-    "add",
-    {
-      description: "把两个数字相加",
-      inputSchema: z.object({
-        a: z.number().describe("第一个数字"),
-        b: z.number().describe("第二个数字"),
-      }),
-    },
-    async ({ a, b }) => {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `结果是：${a + b}`,
-          },
-        ],
-      };
-    }
-  );
+  
   server.registerTool(
     "search",
     {
@@ -44,13 +25,33 @@ const server = new McpServer({
       const {results}=await searchWeb(query)
       const contents = results.map((item) => ({
         type: "text" as const,
-        text: `标题：${item.title}\n链接：${item.url}\n摘要：${item.summary}\n相关度：${item.rerank_score}`,
+        text: `标题：${item.title}\n链接：${item.url}\n片段：${item.snippet}\n相关度：${item.rerank_score}`,
       }));
       return {
         content:contents
       }
     }
   )
+  server.registerTool(
+    "fetch",
+    {
+      description:"使用这个工具抓取指定url地址的网页内容",
+      inputSchema: z.object({
+        url:z.string().describe("网页的url地址")
+      })
+      },
+    async ({url})=>{
+        const result=await fetchWeb(url)
+        return {
+          content:[{
+            type:"text",
+            text:`标题：${result.title}\n正文：${result.content}`
+          }]
+        }
+      }
+
+
+)
   //注册提示词
   server.registerPrompt(
     "greeter",
