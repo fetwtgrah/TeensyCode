@@ -1,13 +1,14 @@
 import type { SandBox } from "../sandbox.js";
-import { generateId, tool, type ModelMessage } from "ai"
-import { overwrite, z } from "zod"
+import { tool, type ModelMessage } from "ai"
+import {  z } from "zod"
 import { relative, resolve, join, basename } from "node:path";
 import { readdirSync, statSync, readFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import type {  WebAgent } from "./client.js";
 import { MessagePrint } from "../test/messageLog.js";
 import { cwd } from"./client.js";
 
-export function CreatWebTool(agent: WebAgent) {
+export function CreateWebTool(agent: WebAgent) {
   const submessages:ModelMessage[]=[]
   return tool({
     description: "你是一个负责互联网搜索的Agent",
@@ -31,6 +32,44 @@ export function CreatWebTool(agent: WebAgent) {
       return result.text
     }
   })
+}
+export function CreateCodeTool(sandbox: SandBox) {
+  return tool({
+    description:
+      `Execute Python code and return its output and execution status.
+      WHEN TO USE:need code to solve problem 
+      WHEN
+      
+      
+      `,
+    inputSchema: z.object({
+      code: z.string().describe("The Python code to execute"),
+    }),
+    execute: async ({ code }) => {
+      const temp = `.code_temp.py`;
+      try {
+        sandbox.writefile(temp, code, false);
+        const result = await sandbox.exec(
+          `python "${temp}"`
+        );
+        return {
+          stdout: result.stdout,
+          exitcode: result.exitcode,
+          error: result.exitcode !== 0,
+        };
+      } catch (error) {
+        return {
+          stdout: "",
+          exitcode: 1,
+          error: true,
+          message:
+            error instanceof Error ? error.message : String(error),
+        };
+      } finally {
+        await rm(join(sandbox.workingdictory,temp), { force: true });
+      }
+    },
+  });
 }
 export function CreateReadTool(sandbox: SandBox) {
   return tool({

@@ -6,7 +6,7 @@ import { createMCPClient } from "@ai-sdk/mcp"
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { LocalSandBox } from "../sandbox.js";
-import { CreateBashTool, CreateGrepTool, CreateReadTool, CreateWriteTool, CreatWebTool } from "./tool.js";
+import { CreateBashTool, CreateGrepTool, CreateReadTool, CreateWriteTool, CreateWebTool,CreateCodeTool } from "./tool.js";
 import { CreateSystemPrompt } from "./system.js";
 import { MessagePrint } from "../test/messageLog.js";
 
@@ -17,6 +17,7 @@ const write=CreateWriteTool(sandbox)
 const read =CreateReadTool(sandbox)
 const grep=CreateGrepTool(sandbox)
 const bash=CreateBashTool(sandbox)
+const code_interpreter=CreateCodeTool(sandbox)
 
 let mcpClient: Awaited<ReturnType<typeof createMCPClient>> | undefined;
 let WebMcpTools: ToolSet = {};
@@ -34,22 +35,21 @@ try {
 
 const webAgent=new ToolLoopAgent({
   model: deepseek("deepseek-chat"),
-  instructions:"你是一个负责互联网搜索的Agent",
+  instructions:"你是一个负责互联网搜索和获取网页内容的Agent",
   tools: WebMcpTools,
   stopWhen: stepCountIs(5)
 
 })
 export type WebAgent=typeof webAgent
-const webTool=CreatWebTool(webAgent)
+const webTool=CreateWebTool(webAgent)
 
-const Localtools = { read, grep, bash,write,webTool}
+const Localtools = { read, grep, bash,write,webTool,code_interpreter}
 
 const instructions = CreateSystemPrompt({
   workingDictory: cwd,
   sandBoxType: "local",
   toolName: Object.keys(Localtools)
 })
-
 
 
 const agent = new ToolLoopAgent({
@@ -77,10 +77,7 @@ try {
     const userInput = await r.question("\nYOU>:")
     if (userInput == 'exit') break
     if (!userInput.trim()) continue
-    messages.push({role:"user",content:[{
-      type:"text",
-      text:userInput
-    }]})
+    messages.push({role:"user",content:userInput})
     const result = await agent.generate({
       messages:messages
     })

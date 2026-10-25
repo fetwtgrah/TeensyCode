@@ -28,7 +28,7 @@ export class LocalSandBox implements SandBox {
               return "拒绝写入：文件路径超出工作目录";
             }
         
-            try {
+        try {
               writeFileSync(abs, content, {
                 encoding: "utf-8",
                 flag: overwrite?"w":"wx"
