@@ -6,18 +6,22 @@ import { createMCPClient } from "@ai-sdk/mcp"
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { LocalSandBox } from "../sandbox.js";
-import { CreateBashTool, CreateGrepTool, CreateReadTool, CreateWriteTool, CreateWebTool,CreateCodeTool } from "./tool.js";
+import { CreateBashTool, CreateGrepTool, CreateReadTool, CreateWriteTool, CreateWebTool, CreateCodeTool } from "./tool.js";
 import { CreateSystemPrompt } from "./system.js";
 import { MessagePrint } from "../test/messageLog.js";
+import { createOpenAI } from "@ai-sdk/openai";
+const packy = createOpenAI({
+  apiKey: process.env.PACKY_API_KEY!,
+  baseURL:"https://slb-v1.api.fan/v1"
+});
+export const cwd = resolve(process.cwd(), "workplace")
+const sandbox = new LocalSandBox(cwd)
 
-export const cwd = resolve(process.cwd(),"workplace")
-const sandbox=new LocalSandBox(cwd)
-
-const write=CreateWriteTool(sandbox)
-const read =CreateReadTool(sandbox)
-const grep=CreateGrepTool(sandbox)
-const bash=CreateBashTool(sandbox)
-const code_interpreter=CreateCodeTool(sandbox)
+const write = CreateWriteTool(sandbox)
+const read = CreateReadTool(sandbox)
+const grep = CreateGrepTool(sandbox)
+const bash = CreateBashTool(sandbox)
+const code_interpreter = CreateCodeTool(sandbox)
 
 let mcpClient: Awaited<ReturnType<typeof createMCPClient>> | undefined;
 let WebMcpTools: ToolSet = {};
@@ -33,17 +37,17 @@ try {
   console.error("请先启动 MCP Server：npm run server")
 }
 
-const webAgent=new ToolLoopAgent({
+const webAgent = new ToolLoopAgent({
   model: deepseek("deepseek-chat"),
-  instructions:"你是一个负责互联网搜索和获取网页内容的Agent",
+  instructions: "你是一个负责互联网搜索和获取网页内容的Agent",
   tools: WebMcpTools,
   stopWhen: stepCountIs(5)
 
 })
-export type WebAgent=typeof webAgent
-const webTool=CreateWebTool(webAgent)
+export type WebAgent = typeof webAgent
+const webTool = CreateWebTool(webAgent)
 
-const Localtools = { read, grep, bash,write,webTool,code_interpreter}
+const Localtools = { read, grep, bash, write, webTool, code_interpreter }
 
 const instructions = CreateSystemPrompt({
   workingDictory: cwd,
@@ -53,7 +57,7 @@ const instructions = CreateSystemPrompt({
 
 
 const agent = new ToolLoopAgent({
-  model: deepseek("deepseek-chat"),
+  model: packy.chat("glm-5.2"),
   instructions,
   tools: {
     ...Localtools,
@@ -68,7 +72,7 @@ console.log("================exit退出====================")
 console.log("============================================")
 console.log("============================================")
 
-const messages :any[]=[]
+const messages: any[] = []
 
 //一个终端交互页面
 const r = readline.createInterface({ input, output })
@@ -77,13 +81,13 @@ try {
     const userInput = await r.question("\nYOU>:")
     if (userInput == 'exit') break
     if (!userInput.trim()) continue
-    messages.push({role:"user",content:userInput})
+    messages.push({ role: "user", content: userInput })
     const result = await agent.generate({
-      messages:messages
+      messages: messages
     })
 
-     if (result.responseMessages) {
-       messages.push(...result.responseMessages);
+    if (result.responseMessages) {
+      messages.push(...result.responseMessages);
     }
     console.log(`\n` + "FRESHER>:" + result.text);
 
@@ -92,5 +96,5 @@ try {
   r.close()
   await mcpClient?.close()
   console.log("\nFRESHER>:😳下次见")
-  MessagePrint(messages,cwd,"agent")
+  MessagePrint(messages, cwd, "agent")
 }
