@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "tsx src/index.ts",
     "server": "npx tsx src/server/server.ts",
-    "client": "npx tsx src/client/client.ts"
+    "client-cli": "npx tsx src/client/cli.ts",
+    "client-web": "npx tsx src/client/web.ts"
   },
   "keywords": [],
   "author": "",

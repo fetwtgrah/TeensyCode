@@ -3,17 +3,14 @@ import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { deepseek } from "@ai-sdk/deepseek";
 import { resolve } from "node:path";
 import { createMCPClient } from "@ai-sdk/mcp"
-import * as readline from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process';
 import { LocalSandBox } from "../sandbox.js";
 import { CreateBashTool, CreateGrepTool, CreateReadTool, CreateWriteTool, CreateWebTool, CreateCodeTool } from "./tool.js";
 import { CreateSystemPrompt } from "./system.js";
-import { MessagePrint } from "../test/messageLog.js";
-import { createOpenAI } from "@ai-sdk/openai";
-const packy = createOpenAI({
-  apiKey: process.env.PACKY_API_KEY!,
-  baseURL:"https://slb-v1.api.fan/v1"
-});
+import { createAnthropic } from '@ai-sdk/anthropic';
+// const packy = createAnthropic({
+//   apiKey: process.env.PACKY_API_KEY!,
+//   baseURL:"https://slb-v1.api.fan/v1"
+// });
 export const cwd = resolve(process.cwd(), "workplace")
 const sandbox = new LocalSandBox(cwd)
 
@@ -23,8 +20,8 @@ const grep = CreateGrepTool(sandbox)
 const bash = CreateBashTool(sandbox)
 const code_interpreter = CreateCodeTool(sandbox)
 
-let mcpClient: Awaited<ReturnType<typeof createMCPClient>> | undefined;
-let WebMcpTools: ToolSet = {};
+export let mcpClient: Awaited<ReturnType<typeof createMCPClient>> | undefined;
+export let WebMcpTools: ToolSet = {};
 
 try {
   mcpClient = await createMCPClient({
@@ -47,7 +44,7 @@ const webAgent = new ToolLoopAgent({
 export type WebAgent = typeof webAgent
 const webTool = CreateWebTool(webAgent)
 
-const Localtools = { read, grep, bash, write, webTool, code_interpreter }
+export const Localtools = { read, grep, bash, write, webTool, code_interpreter }
 
 const instructions = CreateSystemPrompt({
   workingDictory: cwd,
@@ -56,45 +53,11 @@ const instructions = CreateSystemPrompt({
 })
 
 
-const agent = new ToolLoopAgent({
-  model: packy.chat("glm-5.2"),
+export const agent = new ToolLoopAgent({
+  model: deepseek("deepseek-chat"),
   instructions,
   tools: {
     ...Localtools,
   },
   stopWhen: stepCountIs(10)
 })
-
-
-console.log("🧰WebMcp server可用工具:", Object.keys(WebMcpTools).join(', ') || '无')
-console.log("🧰local 可用工具：", Object.keys(Localtools).join(",") || "无")
-console.log("================exit退出====================")
-console.log("============================================")
-console.log("============================================")
-
-const messages: any[] = []
-
-//一个终端交互页面
-const r = readline.createInterface({ input, output })
-try {
-  while (1) {
-    const userInput = await r.question("\nYOU>:")
-    if (userInput == 'exit') break
-    if (!userInput.trim()) continue
-    messages.push({ role: "user", content: userInput })
-    const result = await agent.generate({
-      messages: messages
-    })
-
-    if (result.responseMessages) {
-      messages.push(...result.responseMessages);
-    }
-    console.log(`\n` + "FRESHER>:" + result.text);
-
-  }
-} finally {
-  r.close()
-  await mcpClient?.close()
-  console.log("\nFRESHER>:😳下次见")
-  MessagePrint(messages, cwd, "agent")
-}
