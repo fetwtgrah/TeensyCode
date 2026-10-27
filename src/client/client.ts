@@ -4,9 +4,9 @@ import { deepseek } from "@ai-sdk/deepseek";
 import { resolve } from "node:path";
 import { createMCPClient } from "@ai-sdk/mcp"
 import { LocalSandBox } from "../sandbox.js";
-import { CreateBashTool, CreateGrepTool, CreateReadTool, CreateWriteTool, CreateWebTool, CreateCodeTool } from "./tool.js";
+import * as tools from "./tools/toolFactory.js";
 import { CreateSystemPrompt } from "./system.js";
-import { createAnthropic } from '@ai-sdk/anthropic';
+// import { createAnthropic } from '@ai-sdk/anthropic';
 // const packy = createAnthropic({
 //   apiKey: process.env.PACKY_API_KEY!,
 //   baseURL:"https://slb-v1.api.fan/v1"
@@ -14,11 +14,13 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 export const cwd = resolve(process.cwd(), "workplace")
 const sandbox = new LocalSandBox(cwd)
 
-const write = CreateWriteTool(sandbox)
-const read = CreateReadTool(sandbox)
-const grep = CreateGrepTool(sandbox)
-const bash = CreateBashTool(sandbox)
-const code_interpreter = CreateCodeTool(sandbox)
+const write = tools.CreateWriteTool(sandbox)
+const read = tools.CreateReadTool(sandbox)
+const grep = tools.CreateGrepTool(sandbox)
+const bash = tools.CreateBashTool(sandbox)
+const glob = tools.CreateGlobTool(sandbox)
+const edit = tools.CreateEditTool(sandbox)
+const code_interpreter = tools.CreateCodeTool(sandbox)
 
 export let mcpClient: Awaited<ReturnType<typeof createMCPClient>> | undefined;
 export let WebMcpTools: ToolSet = {};
@@ -42,9 +44,10 @@ const webAgent = new ToolLoopAgent({
 
 })
 export type WebAgent = typeof webAgent
-const webTool = CreateWebTool(webAgent)
+const websubAgent = tools.CreateWebSubAgent(webAgent)
 
-export const Localtools = { read, grep, bash, write, webTool, code_interpreter }
+export const Localtools = {}
+
 
 const instructions = CreateSystemPrompt({
   workingDictory: cwd,
@@ -61,3 +64,7 @@ export const agent = new ToolLoopAgent({
   },
   stopWhen: stepCountIs(10)
 })
+function CreateWriteTool(sandbox: LocalSandBox) {
+  throw new Error("Function not implemented.");
+}
+

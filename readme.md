@@ -129,8 +129,9 @@ npm run client-web   # 网页工作台,打开 http://127.0.0.1:8787
 - [x] bash
 - [x] readfile
 - [x] writefile
-- [ ] glob（文件名字正则搜索）
+- [x] glob（文件名字正则搜索）
 - [] edit-file
+
 
 **增加内容：**
 - [x] 联网搜索 / 网页抓取(MCP)

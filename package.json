@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "server": "npx tsx src/server/server.ts",
-    "client-cli": "npx tsx src/client/cli.ts",
-    "client-web": "npx tsx src/client/web.ts"
+    "client:cli": "npx tsx src/client/cli.ts",
+    "client:web": "npx tsx src/client/web.ts"
   },
   "keywords": [],
   "author": "",

@@ -1,14 +1,14 @@
-import type { SandBox } from "../sandbox.js";
+import type { SandBox } from "../../sandbox.js";
 import { tool, type ModelMessage } from "ai"
 import { z } from "zod"
 import { relative, resolve, join, basename } from "node:path";
 import { readdirSync, statSync, readFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
-import type { WebAgent } from "./client.js";
-import { MessagePrint } from "../utils/messageLog.js";
-import { cwd } from "./client.js";
+import type { WebAgent } from "../client.js";
+import { MessagePrint } from "../../utils/messageLog.js";
+import { cwd } from "../client.js";
 
-export function CreateWebTool(agent: WebAgent) {
+export function CreateWebSubAgent(agent: WebAgent) {
   const submessages: ModelMessage[] = []
   return tool({
     description: "你是一个负责互联网搜索的Agent",
@@ -177,6 +177,79 @@ export function CreateGrepTool(sandbox: SandBox) {
       return total > MAX_MATCHES
         ? matches.join("\n") + `\n...(共有${total}条，当前只显示${MAX_MATCHES})`
         : matches.join("\n")
+    }
+  })
+}
+
+export function CreateGlobTool(sandbox: SandBox) {
+  return tool({
+    description: `Find files whose file name matches a regular expression. Returns paths relative to the working directory.
+  WHEN TO USE: locating files by name, e.g. all test files or all files with a given suffix.
+  WHEN NOT TO USE: searching file contents (use grep instead), reading a known file (use read instead).
+  EXAMPLES:
+    - All TypeScript files: pattern "\\.ts$"
+    - Files starting with "test": pattern "^test"`,
+    inputSchema: z.object({
+      pattern: z.string().describe("文件名的正则表达式，只匹配文件名（不含目录）"),
+      path: z.string().optional().describe("搜索的目录，默认为工作目录")
+    }),
+    execute: async ({ pattern, path: searchPath }) => {
+      let regex: RegExp
+      try {
+        regex = new RegExp(pattern)
+      } catch (error) {
+        return `无效的正则表达式：${error instanceof Error ? error.message : String(error)}`
+      }
+      const dir = resolve(sandbox.workingdictory, searchPath || ".")
+      const MAX_RESULTS = 100
+      let files: string[] = []
+      try {
+        files = walk(dir)
+      } catch {
+        return `无法访问${searchPath || "."}`
+      }
+      const matches = files
+        .filter(file => regex.test(basename(file)))
+        .map(file => relative(sandbox.workingdictory, file))
+      if (matches.length === 0) return "没有匹配的文件"
+      return matches.length > MAX_RESULTS
+        ? matches.slice(0, MAX_RESULTS).join("\n") + `\n...(共有${matches.length}个，当前只显示${MAX_RESULTS})`
+        : matches.join("\n")
+    }
+  })
+}
+
+export function CreateEditTool(sandbox: SandBox) {
+  return tool({
+    description: `Edit a file by replacing an exact text snippet (old_string) with new text (new_string).
+  WHEN TO USE: changing part of an existing file, e.g. fixing a line or renaming a variable.
+  WHEN NOT TO USE: creating a new file or rewriting a whole file (use write instead), reading a file (use read instead).
+  RULES: old_string must match the file exactly, including indentation and line breaks.
+  It must be unique in the file unless replace_all is true; if it is not unique, include more surrounding lines.
+  If you are not sure of the exact text, use read or grep first.
+  EXAMPLES:
+    - path "src/a.ts", old_string "const x = 1", new_string "const x = 2"`,
+    inputSchema: z.object({
+      path: z.string().describe("文件的相对路径"),
+      old_string: z.string().min(1).describe("需要被替换的原文本，必须与文件内容完全一致（包括缩进和换行）"),
+      new_string: z.string().describe("替换后的新文本"),
+      replace_all: z.boolean().default(false).describe("是否替换所有匹配项，默认为false（要求old_string唯一）")
+    }),
+    execute: async ({ path, old_string, new_string, replace_all }) => {
+      let content: string
+      try {
+        content = readFileSync(resolve(sandbox.workingdictory, path), "utf-8")
+      } catch {
+        return `找不到文件${path}`
+      }
+      const count = content.split(old_string).length - 1
+      if (count === 0) return "没有找到需要替换的内容，请确认old_string与文件内容完全一致"
+      if (count > 1 && !replace_all) return `old_string在文件中出现了${count}次，请包含更多上下文使其唯一，或将replace_all设为true`
+      const updated = replace_all
+        ? content.replaceAll(old_string, () => new_string)
+        : content.replace(old_string, () => new_string)
+      const result = sandbox.writefile(path, updated, true)
+      return result.startsWith("文件创建成功") ? `编辑成功，共替换${count}处` : result
     }
   })
 }
