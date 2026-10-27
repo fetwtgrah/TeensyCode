@@ -1,7 +1,7 @@
-import { WebMcpTools,Localtools,agent,mcpClient,cwd} from "./client.js"
+import { WebMcpTools, Localtools, agent, mcpClient, cwd } from "./client.js"
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
-import { MessagePrint} from "../test/messageLog.js";
+import { MessagePrint } from "../utils/messageLog.js";
 
 
 console.log("🧰WebMcp server可用工具:", Object.keys(WebMcpTools).join(', ') || '无')

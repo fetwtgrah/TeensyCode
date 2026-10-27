@@ -5,7 +5,7 @@ import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import { extname, isAbsolute, relative, resolve, sep } from "node:path";
 import type { ModelMessage } from "ai";
 import { agent, cwd, mcpClient } from "./client.js";
-import { MessagePrint } from "../test/messageLog.js";
+import { MessagePrint } from "../utils/messageLog.js";
 
 const FRONTEND = resolve(process.cwd(), "frontend");
 const MAX_BODY = 100_000;

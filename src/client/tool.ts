@@ -1,15 +1,15 @@
 import type { SandBox } from "../sandbox.js";
 import { tool, type ModelMessage } from "ai"
-import {  z } from "zod"
+import { z } from "zod"
 import { relative, resolve, join, basename } from "node:path";
 import { readdirSync, statSync, readFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
-import type {  WebAgent } from "./client.js";
-import { MessagePrint } from "../test/messageLog.js";
-import { cwd } from"./client.js";
+import type { WebAgent } from "./client.js";
+import { MessagePrint } from "../utils/messageLog.js";
+import { cwd } from "./client.js";
 
 export function CreateWebTool(agent: WebAgent) {
-  const submessages:ModelMessage[]=[]
+  const submessages: ModelMessage[] = []
   return tool({
     description: "你是一个负责互联网搜索的Agent",
     inputSchema: z.object({
@@ -17,18 +17,18 @@ export function CreateWebTool(agent: WebAgent) {
     }),
     execute: async ({ query }) => {
       submessages.push({
-        role:"user",
-        content:query
+        role: "user",
+        content: query
       })
 
       const result = await agent.generate({
         messages: submessages
       })
       submessages.push({
-        role:"assistant",
-        content:result.text
+        role: "assistant",
+        content: result.text
       })
-      MessagePrint(submessages,cwd,"sub")
+      MessagePrint(submessages, cwd, "sub")
       return result.text
     }
   })
@@ -66,7 +66,7 @@ export function CreateCodeTool(sandbox: SandBox) {
             error instanceof Error ? error.message : String(error),
         };
       } finally {
-        await rm(join(sandbox.workingdictory,temp), { force: true });
+        await rm(join(sandbox.workingdictory, temp), { force: true });
       }
     },
   });
